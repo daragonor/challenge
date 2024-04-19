@@ -11,17 +11,18 @@ import CoreMotion
 import MediaPlayer
 
 extension ContentView {
-    enum Status: String { case started }
+    enum Status: String { case started, restarted }
     enum Orientation { case portrait, landscape }
     class ViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         @Published var status = Status.started.rawValue.uppercased()
         @Published var player = CustomAVPlayer()
-        var orientation: Orientation
-        private var observer: NSObjectProtocol?
-        var locationManager: CLLocationManager
-        let manager = CMMotionManager()
         
-        private var lastRotation: Double = 0
+        private var orientation: Orientation
+        private var observer: NSObjectProtocol?
+        private var locationManager: CLLocationManager
+        private let manager = CMMotionManager()
+        
+        private var lastRotationOnZ: Double = 0
         private let VIDEO_URL = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4"
         private let VIDEO_TIME_VARIATION: Double = 5
         private let VARIATION: Double = 0.5
@@ -29,12 +30,12 @@ extension ContentView {
             switch action {
             case .decrease:
                 //if the phone has changed to landscape and the last rotation was to the right, the rotation angle will stop being negative on the decrease threshold, therefore it needs a new interval
-                if orientation == .landscape, lastRotation > 0 {
+                if orientation == .landscape, lastRotationOnZ > 0 {
                     return (Double.pi + VARIATION)...(Double.pi + Double.pi/2)
                 } else { return (-Double.pi + VARIATION)...(0) }
             case .increase:
                 //if the phone has changed to landscape and the last rotation was to the left, the rotation angle will stop being postive on the increase threshold, therefore it needs a new interval
-                if orientation == .landscape, lastRotation < 0 {
+                if orientation == .landscape, lastRotationOnZ < 0 {
                     return (-Double.pi - Double.pi/2)...(-Double.pi - VARIATION)
                 } else { return (0)...(Double.pi - VARIATION) }
                 
@@ -68,10 +69,9 @@ extension ContentView {
                     var rotationOnZ = atan2(data.gravity.x, data.gravity.y)
                     switch orientation {
                     case .portrait: rotationOnZ += 0
-                    case .landscape: rotationOnZ += lastRotation > 0 ? Double.pi/2 : -Double.pi/2
+                    case .landscape: rotationOnZ += lastRotationOnZ > 0 ? Double.pi/2 : -Double.pi/2
                     }
-                    lastRotation = rotationOnZ
-                    print(rotationOnZ)
+                    lastRotationOnZ = rotationOnZ
                     if VARIATION_THRESHOLD(action: .decrease).contains(rotationOnZ) {
                         playback(isForward: false)
                         status = "-\(Int(VIDEO_TIME_VARIATION)) SECONDS"
@@ -86,7 +86,6 @@ extension ContentView {
                 guard let device = note.object as? UIDevice else { return }
                 orientation = device.orientation.isLandscape ? .landscape : .portrait
             }
-            
         }
         
         deinit { if let observer = observer { NotificationCenter.default.removeObserver(observer) } }
@@ -101,7 +100,7 @@ extension ContentView {
         //MARK: RESTART ON DISTANCE CHANGE
         func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
             player.seek(to: CMTime.zero)
-            status = "RESTARTED"
+            status = Status.restarted.rawValue.uppercased()
         }
         
         private func playback(isForward: Bool) {
