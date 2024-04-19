@@ -64,7 +64,7 @@ extension ContentView {
                         MPVolumeView.changeVolume(.increase)
                     }
                     //MARK: Z AXIS CONTROL ON PLAYBACK
-                    ///by checking the variation on the X axis, you can see hows it's rotated along the Z axis
+                    ///getting the rotation on the Z axis depends on the variation of the X axis and depending on the orientation, we tweak it to match the new orientation
                     var rotationOnZ = atan2(data.gravity.x, data.gravity.y)
                     switch orientation {
                     case .portrait: rotationOnZ += 0
